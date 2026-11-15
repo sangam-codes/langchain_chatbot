@@ -27,14 +27,14 @@ GROQ_API_KEY=your_key_here
 
 The field starts with that value. `.env` is kept out of git.
 
-The app uses Groq’s API with the model `openai/gpt-oss-20b`. The chat history stays until you refresh the page.
+The app uses Groq’s API with the model `openai/gpt-oss-20b`. The chat history stays until you refresh the page. Both Streamlit and the terminal agent can use the shared tools in `tools.py`: `get_current_time` and `calculate`.
 
 ## Terminal version
 
-`chatbot.py` is the same chat in the terminal: Groq, the same model, and a kept conversation. Put `GROQ_API_KEY` in `.env`, then run:
+`chatbot.py` is the terminal agent: Groq, the same model, a kept conversation, and the same tools. Put `GROQ_API_KEY` in `.env`, then run:
 
 ```bash
 python chatbot.py
 ```
 
-Type `quit` to exit.
+Type `quit` to exit. Tool calls print as `[Tool]` before the bot reply.

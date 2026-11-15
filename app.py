@@ -1,12 +1,21 @@
 # [imports]
-# Loads Streamlit, the env file helper, chat messages, and the agent builder.
+# Loads Streamlit, the env file helper, chat messages, shared tools, and the agent builder.
 import os
 
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.agents import create_agent
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
+
+from tools import TOOLS
+
+SYSTEM_PROMPT = (
+    "You are a helpful assistant. "
+    "Use get_current_time for the current date or time. "
+    "Use calculate for math. "
+    "Answer in 2-3 sentences."
+)
 
 # [load_dotenv]
 # Loads the API key from the .env file so the field can start with it.
@@ -69,12 +78,13 @@ for message in st.session_state.messages:
 # 2. Stop if the API key is missing.
 # 3. Show the user's message in the thread.
 # 4. Build the conversation from saved messages (system prompt is on the agent).
-# 5. Create the Groq model and the agent with no tools.
-# 6. Ask the agent for a reply.
+# 5. Create the Groq model and the agent with tools.
+# 6. Ask the agent for a reply (it may call tools first).
 # 7. Stop and show the error if the call fails.
-# 8. Turn a non-text reply into text.
-# 9. Show the reply.
-# 10. Keep the reply in the thread.
+# 8. Show any tool results from this turn.
+# 9. Turn a non-text reply into text.
+# 10. Show the reply.
+# 11. Keep the reply in the thread.
 # [send_message-1] Stop when there is no new message.
 prompt = st.chat_input("Message")
 if not prompt:
@@ -99,7 +109,7 @@ for message in st.session_state.messages:
     else:
         history.append(AIMessage(content=message["content"]))
 
-# [send_message-5] Create the Groq model and the agent with no tools.
+# [send_message-5] Create the Groq model and the agent with tools.
 model = ChatOpenAI(
     model="openai/gpt-oss-20b",
     api_key=key,
@@ -107,26 +117,34 @@ model = ChatOpenAI(
 )
 agent = create_agent(
     model=model,
-    tools=[],
-    system_prompt="You are a helpful assistant. Answer in 2-3 sentences.",
+    tools=TOOLS,
+    system_prompt=SYSTEM_PROMPT,
 )
 
 with st.chat_message("assistant"):
     try:
-        # [send_message-6] Ask the agent for a reply.
+        # [send_message-6] Ask the agent for a reply (it may call tools first).
+        prior_len = len(history)
         result = agent.invoke({"messages": history})
-        reply = result["messages"][-1].content
+        result_messages = list(result["messages"])
+        reply = result_messages[-1].content
     except Exception as error:
         # [send_message-7] Stop and show the error if the call fails.
         st.error(str(error))
         st.stop()
 
-    # [send_message-8] Turn a non-text reply into text.
+    # [send_message-8] Show any tool results from this turn.
+    for message in result_messages[prior_len:]:
+        if isinstance(message, ToolMessage):
+            tool_name = message.name or "tool"
+            st.caption(f"Tool `{tool_name}`: {message.content}")
+
+    # [send_message-9] Turn a non-text reply into text.
     if not isinstance(reply, str):
         reply = str(reply)
 
-    # [send_message-9] Show the reply.
+    # [send_message-10] Show the reply.
     st.markdown(reply)
 
-# [send_message-10] Keep the reply in the thread.
+# [send_message-11] Keep the reply in the thread.
 st.session_state.messages.append({"role": "assistant", "content": reply})
