@@ -1,10 +1,11 @@
 # [imports]
-# Loads Streamlit, the env file helper, and the pieces that talk to Groq.
+# Loads Streamlit, the env file helper, chat messages, and the agent builder.
 import os
 
 import streamlit as st
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain.agents import create_agent
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 
 # [load_dotenv]
@@ -63,16 +64,17 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # [send_message]
-# Adds the user's message to the chat and shows the model's reply.
+# Adds the user's message to the chat and shows the agent's reply.
 # 1. Stop when there is no new message.
 # 2. Stop if the API key is missing.
 # 3. Show the user's message in the thread.
-# 4. Build the conversation, including the system instruction.
-# 5. Ask Groq for a reply.
-# 6. Stop and show the error if the call fails.
-# 7. Turn a non-text reply into text.
-# 8. Show the reply.
-# 9. Keep the reply in the thread.
+# 4. Build the conversation from saved messages (system prompt is on the agent).
+# 5. Create the Groq model and the agent with no tools.
+# 6. Ask the agent for a reply.
+# 7. Stop and show the error if the call fails.
+# 8. Turn a non-text reply into text.
+# 9. Show the reply.
+# 10. Keep the reply in the thread.
 # [send_message-1] Stop when there is no new message.
 prompt = st.chat_input("Message")
 if not prompt:
@@ -89,35 +91,42 @@ st.session_state.messages.append({"role": "user", "content": prompt})
 with st.chat_message("user"):
     st.markdown(prompt)
 
-# [send_message-4] Build the conversation, including the system instruction.
-history = [SystemMessage(content="You are a helpful assistant. Answer in 2-3 sentences.")]
+# [send_message-4] Build the conversation from saved messages (system prompt is on the agent).
+history = []
 for message in st.session_state.messages:
     if message["role"] == "user":
         history.append(HumanMessage(content=message["content"]))
     else:
         history.append(AIMessage(content=message["content"]))
 
-# [send_message-5] Ask Groq for a reply.
+# [send_message-5] Create the Groq model and the agent with no tools.
 model = ChatOpenAI(
     model="openai/gpt-oss-20b",
     api_key=key,
     base_url="https://api.groq.com/openai/v1",
 )
+agent = create_agent(
+    model=model,
+    tools=[],
+    system_prompt="You are a helpful assistant. Answer in 2-3 sentences.",
+)
 
 with st.chat_message("assistant"):
     try:
-        reply = model.invoke(history).content
+        # [send_message-6] Ask the agent for a reply.
+        result = agent.invoke({"messages": history})
+        reply = result["messages"][-1].content
     except Exception as error:
-        # [send_message-6] Stop and show the error if the call fails.
+        # [send_message-7] Stop and show the error if the call fails.
         st.error(str(error))
         st.stop()
 
-    # [send_message-7] Turn a non-text reply into text.
+    # [send_message-8] Turn a non-text reply into text.
     if not isinstance(reply, str):
         reply = str(reply)
 
-    # [send_message-8] Show the reply.
+    # [send_message-9] Show the reply.
     st.markdown(reply)
 
-# [send_message-9] Keep the reply in the thread.
+# [send_message-10] Keep the reply in the thread.
 st.session_state.messages.append({"role": "assistant", "content": reply})
