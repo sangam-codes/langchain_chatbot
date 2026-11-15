@@ -27,10 +27,12 @@ The field starts with that value. `.env` is gitignored.
 
 The app calls `https://api.groq.com/openai/v1` with the model `openai/gpt-oss-20b`. The thread stays in the browser session. A refresh clears it.
 
-## Terminal script
+## Terminal version
 
-`chatbot.py` is a separate one-shot script. It still calls OpenAI with `gpt-4o-mini` and expects `OPENAI_API_KEY` in `.env`.
+`chatbot.py` is the same chat flow in the terminal: Groq, the same model, and a kept conversation. Put `GROQ_API_KEY` in `.env`, then run:
 
 ```bash
 python chatbot.py
 ```
+
+Type `quit` to exit.
