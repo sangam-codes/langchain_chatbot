@@ -1,5 +1,5 @@
 # [imports]
-# Loads helpers used by the time and calculator tools.
+# Loads helpers used by the time, calculator, and fake-delete tools.
 import ast
 import operator
 from datetime import datetime
@@ -60,6 +60,22 @@ def calculate(expression: str) -> str:
     return str(result)
 
 
+# [delete_note]
+# Pretends to delete a note. Used to practice human approval before a risky tool.
+@tool
+def delete_note(title: str) -> str:
+    """Pretend to delete a saved note by title. Does not delete real files.
+
+    Args:
+        title: The note title the user asked to delete.
+    """
+    return f"Pretend-deleted note: {title}"
+
+
+# [SAFE_TOOLS]
+# Tools that can run without asking the user first.
+SAFE_TOOLS = [get_current_time, calculate]
+
 # [TOOLS]
-# Lists the tools the agent can use.
-TOOLS = [get_current_time, calculate]
+# All tools for the terminal agent, including the fake risky delete.
+TOOLS = [*SAFE_TOOLS, delete_note]

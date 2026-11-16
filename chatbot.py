@@ -1,40 +1,117 @@
 # [imports]
-# Loads the env helper, chat messages, shared tools, and the agent builder.
+# Loads the env helper, chat messages, shared agent helpers, and HITL resume types.
 import os
 import sys
+import uuid
 
 from dotenv import load_dotenv
-from langchain.agents import create_agent
-from langchain_core.messages import HumanMessage, ToolMessage
-from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.types import Command
 
-from tools import TOOLS
-
-SYSTEM_PROMPT = (
-    "You are a helpful assistant. "
-    "Use get_current_time for the current date or time. "
-    "Use calculate for math. "
-    "Answer in 2-3 sentences."
+from agent_common import (
+    action_requests_from_value,
+    build_agent,
+    decision_from_answer,
+    has_interrupts,
+    messages_from_result,
+    reply_text_from_messages,
+    tool_lines_from_messages,
 )
+
+
+# [ask_about_interrupts]
+# Asks y/n for each paused tool and builds the resume decisions.
+# 1. Walk each paused interrupt from LangGraph.
+# 2. Ask about every tool call in that interrupt.
+# 3. Return the decisions list for Command(resume=...).
+def ask_about_interrupts(result) -> dict:
+    decisions = []
+
+    # [ask_about_interrupts-1] Walk each paused interrupt from LangGraph.
+    for interrupt in result.interrupts:
+        value = interrupt.value or {}
+
+        # [ask_about_interrupts-2] Ask about every tool call in that interrupt.
+        for action in action_requests_from_value(value):
+            name = action.get("name", "tool")
+            args = action.get("args", {})
+            print(f"[Approval needed] {name}: {args}")
+            answer = input("Approve this tool? [y/n] ").strip().lower()
+            decisions.append(decision_from_answer(answer))
+
+    # [ask_about_interrupts-3] Return the decisions list for Command(resume=...).
+    return {"decisions": decisions}
+
+
+# [run_agent_turn]
+# Runs the agent until it finishes, pausing for approval when needed.
+# 1. Start or resume the agent for this turn.
+# 2. If tools need approval, ask the user and resume.
+# 3. Return the finished result.
+def run_agent_turn(agent, payload, config):
+    # [run_agent_turn-1] Start or resume the agent for this turn.
+    result = agent.invoke(payload, config=config, version="v2")
+
+    # [run_agent_turn-2] If tools need approval, ask the user and resume.
+    while has_interrupts(result):
+        resume_payload = ask_about_interrupts(result)
+        result = agent.invoke(
+            Command(resume=resume_payload),
+            config=config,
+            version="v2",
+        )
+
+    # [run_agent_turn-3] Return the finished result.
+    return result
+
+
+# [print_turn]
+# Prints new tool results and the final assistant reply for this turn.
+# 1. Print each new tool result from this turn.
+# 2. Print the final assistant reply and return the new count.
+def print_turn(messages: list, seen_count: int) -> int:
+    # [print_turn-1] Print each new tool result from this turn.
+    for line in tool_lines_from_messages(messages, seen_count, markdown=False):
+        print(line)
+
+    # [print_turn-2] Print the final assistant reply and return the new count.
+    print(f"[Bot] {reply_text_from_messages(messages)}")
+    print()
+    if not messages:
+        return seen_count
+    return len(messages)
+
+
+# [wants_to_quit]
+# True when the user typed a quit command.
+def wants_to_quit(user_input: str) -> bool:
+    return user_input.lower() in {"quit", "exit", "q"}
+
+
+# [print_welcome]
+# Shows the startup lines for the terminal chat.
+def print_welcome() -> None:
+    print()
+    print("LangChain Chatbot (terminal + LangGraph approval). Type quit to exit.")
+    print("Tools: get_current_time, calculate, delete_note")
+    print("delete_note asks for y/n before it runs.")
+    print()
 
 
 # [main]
 # Runs the terminal agent chat until the user quits.
 # 1. Load the API key from .env.
 # 2. Stop if the API key is missing.
-# 3. Create the Groq model.
-# 4. Build the agent with the shared tools.
-# 5. Start an empty history so the agent can remember earlier turns.
-# 6. Show the welcome line.
-# 7. Read the next user message.
-# 8. Skip a blank message.
-# 9. Quit when the user asks to leave.
-# 10. Add the user message to the conversation.
-# 11. Ask the agent for a reply (it may call tools first).
-# 12. Drop the last user message and show the error if the call fails.
-# 13. Keep the full reply history, including any tool results.
-# 14. Print each tool result from this turn.
-# 15. Print the final assistant reply.
+# 3. Build the agent with tools, saved state, and delete approval.
+# 4. Start a thread id and message counter for this chat.
+# 5. Show the welcome line.
+# 6. Read the next user message.
+# 7. Skip a blank message.
+# 8. Quit when the user asks to leave.
+# 9. Ask the agent for a reply (it may pause for approval).
+# 10. Show the error if the call fails.
+# 11. Print tools and the final assistant reply.
 def main() -> None:
     # [main-1] Load the API key from .env.
     load_dotenv()
@@ -45,69 +122,43 @@ def main() -> None:
         print("Set GROQ_API_KEY in a .env file before running.")
         sys.exit(1)
 
-    # [main-3] Create the Groq model.
-    model = ChatOpenAI(
-        model="openai/gpt-oss-20b",
-        api_key=key,
-        base_url="https://api.groq.com/openai/v1",
-    )
+    # [main-3] Build the agent with tools, saved state, and delete approval.
+    agent = build_agent(key, InMemorySaver())
 
-    # [main-4] Build the agent with the shared tools.
-    agent = create_agent(
-        model=model,
-        tools=TOOLS,
-        system_prompt=SYSTEM_PROMPT,
-    )
+    # [main-4] Start a thread id and message counter for this chat.
+    config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    seen_message_count = 0
 
-    # [main-5] Start an empty history so the agent can remember earlier turns.
-    history: list = []
-
-    # [main-6] Show the welcome line.
-    print()
-    print("LangChain Chatbot (terminal + tools). Type quit to exit.")
-    print("Tools: get_current_time, calculate")
-    print()
+    # [main-5] Show the welcome line.
+    print_welcome()
 
     while True:
-        # [main-7] Read the next user message.
+        # [main-6] Read the next user message.
         user_input = input("[You] ").strip()
 
-        # [main-8] Skip a blank message.
+        # [main-7] Skip a blank message.
         if not user_input:
             continue
 
-        # [main-9] Quit when the user asks to leave.
-        if user_input.lower() in {"quit", "exit", "q"}:
+        # [main-8] Quit when the user asks to leave.
+        if wants_to_quit(user_input):
             break
 
-        # [main-10] Add the user message to the conversation.
-        prior_len = len(history)
-        history.append(HumanMessage(content=user_input))
-
         try:
-            # [main-11] Ask the agent for a reply (it may call tools first).
-            result = agent.invoke({"messages": history})
+            # [main-9] Ask the agent for a reply (it may pause for approval).
+            result = run_agent_turn(
+                agent,
+                {"messages": [HumanMessage(content=user_input)]},
+                config,
+            )
         except Exception as error:
-            # [main-12] Drop the last user message and show the error if the call fails.
+            # [main-10] Show the error if the call fails.
             print(f"Error: {error}")
-            history = history[:prior_len]
             continue
 
-        # [main-13] Keep the full reply history, including any tool results.
-        history = list(result["messages"])
-
-        # [main-14] Print each tool result from this turn.
-        for message in history[prior_len:]:
-            if isinstance(message, ToolMessage):
-                tool_name = message.name or "tool"
-                print(f"[Tool] {tool_name}: {message.content}")
-
-        # [main-15] Print the final assistant reply.
-        reply = history[-1].content
-        if not isinstance(reply, str):
-            reply = str(reply)
-        print(f"[Bot] {reply}")
-        print()
+        # [main-11] Print tools and the final assistant reply.
+        messages = messages_from_result(result)
+        seen_message_count = print_turn(messages, seen_message_count)
 
 
 # [entrypoint]
