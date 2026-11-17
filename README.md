@@ -27,14 +27,14 @@ GROQ_API_KEY=your_key_here
 
 The field starts with that value. `.env` is kept out of git.
 
-The app uses Groq’s API with the model `openai/gpt-oss-20b`. The chat history stays until you refresh the page (tool captions stay with each reply). Streamlit and the terminal share prompt/HITL helpers in `agent_common.py` and tools in `tools.py`, including the fake `delete_note` tool. If the agent wants to delete a note, the page shows **Approve** / **Reject** before the tool runs. Reject once, then ask to delete again → approval is requested again.
+The app uses Groq’s API with the model `openai/gpt-oss-20b`. The chat history stays until you refresh the page (tool captions stay with each reply). Streamlit and the terminal share helpers in `agent_common.py`, tools in `tools.py`, and lasting facts in `memory_store.py` (written to `.memory.json`, gitignored). Try “my hobby is …” and “my favorite color is …”, then restart and ask what you remember. If the agent wants to delete a note, the page shows **Approve** / **Reject** first. Reject once, then ask to delete again → approval is requested again.
 
 ## Terminal version
 
-`chatbot.py` is the terminal agent: Groq, chat history, tools, and the same LangGraph approval step for `delete_note`. Put `GROQ_API_KEY` in `.env`, then run:
+`chatbot.py` is the terminal agent: Groq, chat history, tools, lasting memory, and LangGraph approval for `delete_note`. Put `GROQ_API_KEY` in `.env`, then run:
 
 ```bash
 python chatbot.py
 ```
 
-Type `quit` to exit. Safe tools print as `[Tool]`. If the agent wants to delete a note, it asks `Approve this tool? [y/n]` first. Reject once, then ask to delete again → approval is requested again.
+Type `quit` to exit. Tool calls print as `[Tool]`. Memory tools write `.memory.json`. If the agent wants to delete a note, it asks `Approve this tool? [y/n]` first. Reject once, then ask to delete again → approval is requested again.

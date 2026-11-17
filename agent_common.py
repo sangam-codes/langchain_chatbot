@@ -11,6 +11,8 @@ SYSTEM_PROMPT = (
     "You are a helpful assistant. "
     "Use get_current_time for the current date or time. "
     "Use calculate for math. "
+    "Use remember_fact for lasting preferences such as hobby or favorite_color. "
+    "Use recall_facts when the user asks what you remember. "
     "Use delete_note only when the user asks to delete a note. "
     "If delete_note was rejected or blocked, say the note was not deleted. "
     "Do not claim a delete succeeded unless a tool result shows it was pretend-deleted. "
@@ -21,6 +23,8 @@ SYSTEM_PROMPT = (
 HITL_INTERRUPT_ON = {
     "get_current_time": False,
     "calculate": False,
+    "remember_fact": False,
+    "recall_facts": False,
     "delete_note": {"allowed_decisions": ["approve", "reject"]},
 }
 

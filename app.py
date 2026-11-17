@@ -18,6 +18,7 @@ from agent_common import (
     reply_text_from_messages,
     tool_lines_from_messages,
 )
+from memory_store import get_facts
 
 
 # [build_agent]
@@ -107,6 +108,8 @@ def render_sidebar() -> str:
         st.caption(
             "Risky tools like delete_note ask for Approve / Reject before they run."
         )
+        st.caption("Lasting facts are stored in `.memory.json` and survive restarts.")
+        st.caption(f"Saved memory: {get_facts()}")
     return api_key
 
 

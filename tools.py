@@ -1,10 +1,12 @@
 # [imports]
-# Loads helpers used by the time, calculator, and fake-delete tools.
+# Loads helpers used by the time, calculator, delete, and memory tools.
 import ast
 import operator
 from datetime import datetime
 
 from langchain.tools import tool
+
+from memory_store import get_facts, set_fact
 
 
 # [get_current_time]
@@ -72,10 +74,31 @@ def delete_note(title: str) -> str:
     return f"Pretend-deleted note: {title}"
 
 
+# [remember_fact]
+# Saves a lasting fact about the user to the local memory file.
+@tool
+def remember_fact(key: str, value: str) -> str:
+    """Save a lasting fact about the user such as hobby or favorite color.
+
+    Args:
+        key: Short label for the fact, such as "hobby" or "favorite_color".
+        value: The fact to remember.
+    """
+    return set_fact(key, value)
+
+
+# [recall_facts]
+# Returns all lasting facts saved about the user.
+@tool
+def recall_facts() -> str:
+    """Return all saved lasting facts about the user."""
+    return get_facts()
+
+
 # [SAFE_TOOLS]
 # Tools that can run without asking the user first.
-SAFE_TOOLS = [get_current_time, calculate]
+SAFE_TOOLS = [get_current_time, calculate, remember_fact, recall_facts]
 
 # [TOOLS]
-# All tools for the terminal agent, including the fake risky delete.
+# All tools, including the fake risky delete.
 TOOLS = [*SAFE_TOOLS, delete_note]

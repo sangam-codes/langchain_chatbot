@@ -93,9 +93,9 @@ def wants_to_quit(user_input: str) -> bool:
 # Shows the startup lines for the terminal chat.
 def print_welcome() -> None:
     print()
-    print("LangChain Chatbot (terminal + LangGraph approval). Type quit to exit.")
-    print("Tools: get_current_time, calculate, delete_note")
-    print("delete_note asks for y/n before it runs.")
+    print("LangChain Chatbot (terminal + memory). Type quit to exit.")
+    print("Tools: get_current_time, calculate, remember_fact, recall_facts, delete_note")
+    print("delete_note asks for y/n. Try saving hobby / favorite color in .memory.json.")
     print()
 
 
