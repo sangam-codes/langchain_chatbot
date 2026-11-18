@@ -1,11 +1,12 @@
 # [imports]
-# Loads helpers used by the time, calculator, delete, and memory tools.
+# Loads helpers used by the time, calculator, delete, memory, and docs tools.
 import ast
 import operator
 from datetime import datetime
 
 from langchain.tools import tool
 
+from docs_store import search_local_docs
 from memory_store import get_facts, set_fact
 
 
@@ -95,9 +96,27 @@ def recall_facts() -> str:
     return get_facts()
 
 
+# [search_docs]
+# Searches local project markdown docs and returns matching snippets with sources.
+@tool
+def search_docs(query: str) -> str:
+    """Search local markdown docs (cafe, library, park, and any other files in docs/).
+
+    Args:
+        query: What to look for in the docs.
+    """
+    return search_local_docs(query)
+
+
 # [SAFE_TOOLS]
 # Tools that can run without asking the user first.
-SAFE_TOOLS = [get_current_time, calculate, remember_fact, recall_facts]
+SAFE_TOOLS = [
+    get_current_time,
+    calculate,
+    remember_fact,
+    recall_facts,
+    search_docs,
+]
 
 # [TOOLS]
 # All tools, including the fake risky delete.

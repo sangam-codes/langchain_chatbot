@@ -13,6 +13,10 @@ SYSTEM_PROMPT = (
     "Use calculate for math. "
     "Use remember_fact for lasting preferences such as hobby or favorite_color. "
     "Use recall_facts when the user asks what you remember. "
+    "Use search_docs for questions that might be answered by the local docs folder. "
+    "If search_docs finds nothing useful, or the question is not about those docs, "
+    "say you don't know from the docs rather than guessing. "
+    "Mention the source filename when you use a doc. "
     "Use delete_note only when the user asks to delete a note. "
     "If delete_note was rejected or blocked, say the note was not deleted. "
     "Do not claim a delete succeeded unless a tool result shows it was pretend-deleted. "
@@ -25,6 +29,7 @@ HITL_INTERRUPT_ON = {
     "calculate": False,
     "remember_fact": False,
     "recall_facts": False,
+    "search_docs": False,
     "delete_note": {"allowed_decisions": ["approve", "reject"]},
 }
 
