@@ -27,11 +27,11 @@ GROQ_API_KEY=your_key_here
 
 The field starts with that value. `.env` is kept out of git.
 
-The app uses Groq’s API with the model `openai/gpt-oss-20b`. The chat history stays until you refresh the page (tool captions stay with each reply). Shared pieces: `agent_common.py`, `tools.py`, `memory_store.py` (`.memory.json`, gitignored), and `docs_store.py` (keyword search over `docs/*.md`). Sample docs cover a cafe, library, and park. Try “What time does Harbor Cafe open?” or “How long can I borrow a library book?” — the agent should call `search_docs` and mention a source file. If the docs have nothing useful, it should say it doesn’t know from the docs. Lasting facts still work via hobby / favorite color. Delete still uses **Approve** / **Reject**.
+The app uses Groq’s API with the model `openai/gpt-oss-20b`. The chat history stays until you refresh the page (tool captions stay with each reply). Shared pieces: `agent_common.py`, `tools.py`, `memory_store.py` (`.memory.json`, gitignored), and `docs_store.py` (vector search over `docs/*.md` with TF-IDF + cosine similarity). Sample docs cover a cafe, library, and park. Try “What time does Harbor Cafe open?” or “How long can I borrow a library book?” — the agent should call `search_docs` and mention a source file. If the docs have nothing useful, it should say it doesn’t know from the docs. This step uses free local TF-IDF vectors (works on Python 3.14; neural MiniLM needs torch, which is not ready here yet). Lasting facts still work via hobby / favorite color. Delete still uses **Approve** / **Reject**.
 
 ## Terminal version
 
-`chatbot.py` is the terminal agent: Groq, tools, lasting memory, local docs search, and LangGraph approval for `delete_note`. Put `GROQ_API_KEY` in `.env`, then run:
+`chatbot.py` is the terminal agent: Groq, tools, lasting memory, vector docs search, and LangGraph approval for `delete_note`. Put `GROQ_API_KEY` in `.env`, then run:
 
 ```bash
 python chatbot.py

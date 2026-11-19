@@ -110,7 +110,10 @@ def render_sidebar() -> str:
         )
         st.caption("Lasting facts are stored in `.memory.json` and survive restarts.")
         st.caption(f"Saved memory: {get_facts()}")
-        st.caption("Ask about the cafe, library, or park notes in `docs/`.")
+        st.caption(
+            "Ask about the cafe, library, or park notes in `docs/` "
+            "(TF-IDF vector search)."
+        )
     return api_key
 
 
